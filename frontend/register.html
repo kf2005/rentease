@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create account — RentEase</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<main class="auth-wrap">
+  <div class="card auth-card">
+    <h1 style="font-size:1.6rem">Create your account</h1>
+    <p class="muted" style="margin-top:0">It takes less than a minute.</p>
+    <form id="register-form" novalidate>
+      <div class="role-picker field">
+        <label><input type="radio" name="role" value="tenant" checked>I'm looking to rent<span>Browse and contact owners</span></label>
+        <label><input type="radio" name="role" value="owner">I'm a property owner<span>List and manage properties</span></label>
+      </div>
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" name="name" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="phone">Phone <span class="hint">(shown to signed-in users on your listings)</span></label>
+        <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="03xx-xxxxxxx">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+        <div class="hint">At least 8 characters.</div>
+      </div>
+      <button class="btn block" type="submit">Create account</button>
+    </form>
+    <p class="hint" style="text-align:center;margin-top:1rem">Already have an account? <a href="login.html">Log in</a></p>
+  </div>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — RentEase</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<main class="page">
+  <div class="container">
+    <div class="page-head">
+      <div>
+        <h1 id="dash-title">Dashboard</h1>
+        <p id="dash-sub"></p>
+      </div>
+      <button class="btn" id="new-listing-btn" type="button" hidden>+ Add new listing</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="panel"></div>
+  </div>
+</main>
+
+<div class="modal-backdrop" id="listing-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="card modal">
+    <div class="modal-head">
+      <h2 id="modal-title" style="margin:0">Add listing</h2>
+      <button class="close-x" type="button" data-close aria-label="Close">×</button>
+    </div>
+    <form id="listing-form" novalidate>
+      <div class="field">
+        <label for="f-title">Title</label>
+        <input id="f-title" name="title" maxlength="150" placeholder="e.g. 2-bed flat near F-10 Markaz" required>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-type">Property type</label>
+          <select id="f-type" name="property_type" required>
+            <option value="">Choose…</option>
+            <option value="house">House</option>
+            <option value="flat">Flat / apartment</option>
+            <option value="portion">Portion</option>
+            <option value="room">Room</option>
+            <option value="studio">Studio</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-rent">Monthly rent (Rs)</label>
+          <input id="f-rent" name="rent" type="number" min="1000" step="500" required>
+        </div>
+        <div class="field">
+          <label for="f-city">City</label>
+          <input id="f-city" name="city" list="city-list" required>
+          <datalist id="city-list">
+            <option value="Islamabad"><option value="Rawalpindi"><option value="Lahore"><option value="Karachi">
+            <option value="Peshawar"><option value="Faisalabad"><option value="Multan"><option value="Quetta">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="f-area">Area / sector</label>
+          <input id="f-area" name="area" placeholder="e.g. G-11/2, DHA Phase 6" required>
+        </div>
+        <div class="field">
+          <label for="f-bedrooms">Bedrooms</label>
+          <input id="f-bedrooms" name="bedrooms" type="number" min="0" max="20" required>
+        </div>
+        <div class="field">
+          <label for="f-bathrooms">Bathrooms</label>
+          <input id="f-bathrooms" name="bathrooms" type="number" min="0" max="20" required>
+        </div>
+        <div class="field">
+          <label for="f-size">Size (sq ft) <span class="hint">optional</span></label>
+          <input id="f-size" name="size_sqft" type="number" min="50">
+        </div>
+        <div class="field">
+          <label for="f-address">Street address <span class="hint">optional</span></label>
+          <input id="f-address" name="address" maxlength="255">
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-desc">Description</label>
+        <textarea id="f-desc" name="description" rows="5" placeholder="Describe the property, nearby facilities, utilities, rules…" required></textarea>
+      </div>
+      <div class="field"><label class="checkbox"><input type="checkbox" name="furnished"> Furnished</label></div>
+
+      <div id="images-section" hidden>
+        <label>Photos</label>
+        <div class="image-manager" id="image-manager"></div>
+        <div class="field">
+          <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp" multiple>
+          <div class="hint">JPG, PNG or WebP, up to 5 MB each, max 8 photos. The first photo is the cover.</div>
+        </div>
+      </div>
+      <p class="hint" id="moderation-note">New and edited listings are reviewed by an admin before they appear publicly.</p>
+      <div style="display:flex;gap:.6rem;justify-content:flex-end">
+        <button class="btn secondary" type="button" data-close>Cancel</button>
+        <button class="btn" type="submit" id="save-btn">Save listing</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/inquiries.js"></script>
+<script src="assets/js/dashboard.js"></script>
+</body>
+</html>

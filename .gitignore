@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local config & data — never commit secrets
+.env
+backend/uploads/
+backend/*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

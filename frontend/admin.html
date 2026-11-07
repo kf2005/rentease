@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — RentEase</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<main class="page">
+  <div class="container">
+    <div class="page-head">
+      <div>
+        <h1>Admin dashboard</h1>
+        <p>Review new listings and manage users.</p>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="tabs" id="tabs">
+      <button type="button" data-tab="pending" class="current">Pending review<span class="count" id="pending-count">0</span></button>
+      <button type="button" data-tab="approved">Approved</button>
+      <button type="button" data-tab="rejected">Rejected</button>
+      <button type="button" data-tab="users">Users</button>
+    </div>
+    <div id="panel"></div>
+  </div>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

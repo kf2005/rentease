@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RentEase — Houses, flats and rooms for rent</title>
+  <meta name="description" content="Find houses, flats, portions and rooms for rent across Pakistan.">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="container">
+      <h1>Find a place you'll love to call home</h1>
+      <p>Browse verified houses, flats, portions and rooms for rent, and contact owners directly.</p>
+    </div>
+  </section>
+
+  <div class="container">
+    <form class="card search-panel" id="search-form" autocomplete="off">
+      <div class="search-grid">
+        <div class="field">
+          <label for="q">Search</label>
+          <input id="q" name="q" type="search" placeholder="e.g. balcony, near park, F-10">
+        </div>
+        <div class="field">
+          <label for="city">City</label>
+          <select id="city" name="city"><option value="">All cities</option></select>
+        </div>
+        <div class="field">
+          <label for="type">Type</label>
+          <select id="type" name="type">
+            <option value="">Any type</option>
+            <option value="house">House</option>
+            <option value="flat">Flat</option>
+            <option value="portion">Portion</option>
+            <option value="room">Room</option>
+            <option value="studio">Studio</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="min_rent">Min rent</label>
+          <input id="min_rent" name="min_rent" type="number" min="0" step="1000" placeholder="Rs">
+        </div>
+        <div class="field">
+          <label for="max_rent">Max rent</label>
+          <input id="max_rent" name="max_rent" type="number" min="0" step="1000" placeholder="Rs">
+        </div>
+        <div class="field">
+          <label for="bedrooms">Bedrooms</label>
+          <select id="bedrooms" name="bedrooms">
+            <option value="">Any</option>
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+            <option value="4">4+</option>
+            <option value="5">5+</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit">Search</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:1.25rem;margin-top:.8rem;align-items:center;flex-wrap:wrap">
+        <label class="checkbox"><input type="checkbox" name="furnished" id="furnished"> Furnished only</label>
+        <button class="linklike" type="button" id="reset-btn" style="color:var(--brand);font-weight:600">Clear filters</button>
+      </div>
+    </form>
+
+    <div class="results-bar">
+      <div id="result-count" class="muted"></div>
+      <label style="display:flex;align-items:center;gap:.5rem;margin:0;font-weight:500">
+        Sort by
+        <select id="sort">
+          <option value="newest">Newest first</option>
+          <option value="rent_asc">Rent: low to high</option>
+          <option value="rent_desc">Rent: high to low</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="results" class="grid"></div>
+    <div id="pagination" class="pagination"></div>
+    <div style="height:3rem"></div>
+  </div>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/home.js"></script>
+</body>
+</html>
