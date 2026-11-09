@@ -84,16 +84,12 @@ class Database:
         try:
             cur = self.cursor(conn)
             if self.kind == "postgres":
-                # Several app instances may start at once behind the load
-                # balancer; the advisory lock makes migration run serially.
-                cur.execute("SELECT pg_advisory_lock(%s)", (MIGRATION_LOCK_ID,))
+                cur.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATION_LOCK_ID,))
             for statement in statements:
                 cur.execute(statement)
-            if self.kind == "postgres":
-                cur.execute("SELECT pg_advisory_unlock(%s)", (MIGRATION_LOCK_ID,))
-            conn.commit()
+            conn.commit()  # lock is released here, after the schema is visible
         finally:
-            self.release(conn)
+            self.release(conn)  # rolls back on error, which also releases the lock
 
 
 def _dict_factory(cursor, row):
