@@ -1,0 +1,57 @@
+# RentEase web tier - Nginx configuration template.
+# The official nginx image substitutes ${BACKEND_URL} and ${NGINX_RESOLVER}
+# from environment variables at container start-up (other $variables are
+# left untouched), so the same image works locally and on AWS.
+
+server {
+    listen 80;
+    server_name _;
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Photo uploads: up to 8 images x 5 MB plus form overhead.
+    client_max_body_size 45m;
+
+    # Security headers for every page.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Re-resolve the backend hostname regularly. Needed when BACKEND_URL points
+    # at an internal load balancer whose IP addresses change.
+    #   Docker Compose: 127.0.0.11   |   AWS VPC: 169.254.169.253
+    resolver ${NGINX_RESOLVER} valid=30s ipv6=off;
+    resolver_timeout 5s;
+
+    # Web-tier health check for the public load balancer target group.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Reverse proxy: the browser only talks to the web tier; the app tier
+    # stays in the private network / subnet.
+    location /api/ {
+        set $backend "${BACKEND_URL}";
+        proxy_pass $backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+    }
+
+    location /assets/ {
+        expires 1h;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

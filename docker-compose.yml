@@ -1,0 +1,79 @@
+# RentEase - all three tiers on one machine (local testing / single-host demo).
+#
+#   copy .env.example .env      # then edit the values
+#   docker compose up --build -d
+#   docker compose exec backend python manage.py seed     # optional demo data
+#   open http://localhost:8080
+#
+# Two networks mirror the cloud design:
+#   frontend-net : web tier  <-> app tier   (like the public  subnet side)
+#   backend-net  : app tier  <-> database   (like the private subnet; no internet access)
+# Only the web tier publishes a port to the host.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rentease
+      POSTGRES_USER: rentease
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rentease -d rentease"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend-net
+
+  backend:
+    build: ./backend
+    image: rentease-backend:local
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: rentease
+      DB_USER: rentease
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      STORAGE_BACKEND: local
+      UPLOAD_DIR: /app/uploads
+      INSTANCE_ID: backend-local
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - frontend-net
+      - backend-net
+
+  frontend:
+    build: ./frontend
+    image: rentease-frontend:local
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:5000
+      NGINX_RESOLVER: 127.0.0.11
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - frontend-net
+
+networks:
+  frontend-net:
+  backend-net:
+    internal: true   # the database network has no route to the internet
+
+volumes:
+  pgdata:
+  uploads:

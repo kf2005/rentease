@@ -221,3 +221,34 @@ Four tables: `users`, `properties`, `property_images`, `inquiries` (see `backend
 - The frontend escapes all user content before rendering.
 - `X-Content-Type-Options: nosniff` is set on API responses.
 - Login redirects only allow same-site paths.
+
+## Running with Docker (all three tiers)
+
+You need Docker Desktop. If they are still running, stop the local `python wsgi.py` and `http.server` first, because port 8080 is needed.
+
+```bash
+copy .env.example .env          # macOS/Linux: cp .env.example .env  — then edit the values
+docker compose up --build -d    # builds both images and starts db, backend, frontend
+docker compose ps               # all three should become "healthy"
+docker compose exec backend python manage.py seed   # optional demo data
+```
+
+Open http://localhost:8080. Useful commands:
+
+| Command | What it does |
+|---|---|
+| `docker compose logs -f backend` | follow the API's JSON logs |
+| `docker compose up --build -d` | rebuild after code changes |
+| `docker compose down` | stop (data is kept in volumes) |
+| `docker compose down -v` | stop **and delete** the database and uploads |
+
+| File | Purpose |
+|---|---|
+| `backend/Dockerfile` | Python 3.12 slim, gunicorn, non-root user, health check |
+| `frontend/Dockerfile` | Nginx serving the site; forces `API_BASE="/api"` inside the image |
+| `frontend/nginx.conf.template` | proxies `/api/` to `BACKEND_URL`; security headers; `/healthz`; 45 MB upload limit |
+| `docker-compose.yml` | db + backend + frontend on two networks; only port 8080 is published |
+
+The frontend image reads two environment variables at start-up:
+- **`BACKEND_URL`** is where `/api` is forwarded: `http://backend:5000` in Compose, or the app tier's private IP / internal load balancer on AWS.
+- **`NGINX_RESOLVER`** is the DNS server: `127.0.0.11` in Docker, `169.254.169.253` inside an AWS VPC.
