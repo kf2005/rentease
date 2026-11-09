@@ -84,12 +84,14 @@ class Database:
         try:
             cur = self.cursor(conn)
             if self.kind == "postgres":
+                # Transaction-scoped lock: released automatically on commit or
+                # rollback, so the schema is visible before the next worker runs.
                 cur.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATION_LOCK_ID,))
             for statement in statements:
                 cur.execute(statement)
-            conn.commit()  # lock is released here, after the schema is visible
+            conn.commit()
         finally:
-            self.release(conn)  # rolls back on error, which also releases the lock
+            self.release(conn)
 
 
 def _dict_factory(cursor, row):
