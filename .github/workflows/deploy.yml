@@ -1,0 +1,194 @@
+# RentEase CI/CD pipeline
+#
+#   push to main ─┬─ unit-tests ─────────┐
+#                 └─ integration-test ───┴─ build-and-push (GHCR) ── deploy (AWS)
+#
+# - unit-tests       : pytest suite for the API
+# - integration-test : builds all images and runs the full 3-tier stack with
+#                      Docker Compose, then checks it end to end
+# - build-and-push   : builds web + api images and pushes them to GHCR,
+#                      tagged with the commit SHA and "latest"
+# - deploy           : logs in to AWS with OIDC (no stored keys) and starts an
+#                      instance refresh on both Auto Scaling Groups.
+#                      Runs only when the repository variable DEPLOY_ENABLED is "true".
+#
+# Repository variables used by the deploy job (Settings > Secrets and variables > Actions > Variables):
+#   DEPLOY_ENABLED = true
+#   AWS_REGION     = ap-south-1
+#   AWS_ROLE_ARN   = arn:aws:iam::<account-id>:role/rentease-github-deploy
+#   WEB_ASG_NAME   = rentease-web-asg
+#   APP_ASG_NAME   = rentease-app-asg
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: rentease-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: python -m pytest -v
+
+  integration-test:
+    name: Integration test (docker compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create throwaway secrets for the test stack
+        run: |
+          echo "DB_PASSWORD=$(openssl rand -hex 16)"   >> .env
+          echo "JWT_SECRET=$(openssl rand -hex 32)"    >> .env
+          echo "ADMIN_EMAIL=ci-admin@example.com"      >> .env
+          echo "ADMIN_PASSWORD=$(openssl rand -hex 12)" >> .env
+
+      - name: Build and start all three tiers
+        run: docker compose up --build --detach --wait --wait-timeout 180
+
+      - name: Check the stack end to end
+        run: |
+          set -e
+          echo "Web tier health:";   curl -fsS http://localhost:8080/healthz
+          echo "API through Nginx:"; curl -fsS http://localhost:8080/api/health
+          echo
+          docker compose exec -T backend python manage.py seed
+          count=$(curl -fsS "http://localhost:8080/api/properties" | python3 -c "import sys, json; print(json.load(sys.stdin)['total'])")
+          echo "Approved listings returned: $count"
+          test "$count" -gt 0
+          curl -fsS http://localhost:8080/ | grep -q "RentEase"
+          echo "Integration test passed"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
+
+  build-and-push:
+    name: Build & push images (GHCR)
+    needs: [unit-tests, integration-test]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: rentease-web
+            context: frontend
+          - image: rentease-api
+            context: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (registry paths must be lowercase)
+        id: name
+        run: echo "repo=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ steps.name.outputs.repo }}:${{ github.sha }}
+            ${{ steps.name.outputs.repo }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    name: Deploy to AWS (instance refresh)
+    needs: build-and-push
+    if: github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for OIDC login to AWS
+    steps:
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Start rolling instance refresh on both tiers
+        id: refresh
+        run: |
+          set -e
+          prefs='{"MinHealthyPercentage":50,"InstanceWarmup":120}'
+          app_id=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "${{ vars.APP_ASG_NAME }}" \
+            --preferences "$prefs" --query InstanceRefreshId --output text)
+          web_id=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "${{ vars.WEB_ASG_NAME }}" \
+            --preferences "$prefs" --query InstanceRefreshId --output text)
+          echo "app_id=$app_id" >> "$GITHUB_OUTPUT"
+          echo "web_id=$web_id" >> "$GITHUB_OUTPUT"
+          echo "App tier refresh: $app_id"
+          echo "Web tier refresh: $web_id"
+
+      - name: Wait for the refreshes to finish
+        run: |
+          wait_for() {
+            local asg="$1" id="$2"
+            for i in $(seq 1 60); do
+              read -r status pct <<< "$(aws autoscaling describe-instance-refreshes \
+                --auto-scaling-group-name "$asg" --instance-refresh-ids "$id" \
+                --query 'InstanceRefreshes[0].[Status,PercentageComplete]' --output text)"
+              echo "$asg: $status (${pct}%)"
+              case "$status" in
+                Successful) return 0 ;;
+                Failed|Cancelled|RollbackSuccessful|RollbackFailed) return 1 ;;
+              esac
+              sleep 20
+            done
+            echo "Timed out waiting for $asg"; return 1
+          }
+          wait_for "${{ vars.APP_ASG_NAME }}" "${{ steps.refresh.outputs.app_id }}"
+          wait_for "${{ vars.WEB_ASG_NAME }}" "${{ steps.refresh.outputs.web_id }}"
+          echo "Deployment complete"
