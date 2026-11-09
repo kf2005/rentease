@@ -4,7 +4,7 @@ import logging
 from flask import current_app
 
 from .auth import hash_password
-from .db import commit, execute, query
+from .db import commit, execute, get_conn, is_unique_violation, query
 
 log = logging.getLogger("rentease.bootstrap")
 
@@ -19,12 +19,20 @@ def ensure_admin():
     email = cfg.ADMIN_EMAIL.strip().lower()
     if query("SELECT id FROM users WHERE email = %s", (email,), one=True):
         return
-    execute(
-        "INSERT INTO users (name, email, password_hash, role) VALUES (%s, %s, %s, 'admin')",
-        (cfg.ADMIN_NAME, email, hash_password(cfg.ADMIN_PASSWORD)),
-    )
-    commit()
-    log.info("Created admin account %s", email)
+    try:
+        execute(
+            "INSERT INTO users (name, email, password_hash, role) VALUES (%s, %s, %s, 'admin')",
+            (cfg.ADMIN_NAME, email, hash_password(cfg.ADMIN_PASSWORD)),
+        )
+        commit()
+        log.info("Created admin account %s", email)
+    except Exception as exc:
+        # Several gunicorn workers (or several instances behind the load
+        # balancer) start at the same moment and race to create the admin.
+        # Losing that race is fine: the account now exists.
+        if not is_unique_violation(exc):
+            raise
+        get_conn().rollback()
 
 
 DEMO_USERS = [

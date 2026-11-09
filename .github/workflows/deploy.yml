@@ -85,7 +85,8 @@ jobs:
           count=$(curl -fsS "http://localhost:8080/api/properties" | python3 -c "import sys, json; print(json.load(sys.stdin)['total'])")
           echo "Approved listings returned: $count"
           test "$count" -gt 0
-          curl -fsS http://localhost:8080/ | grep -q "RentEase"
+          curl -fsS -o /tmp/index.html http://localhost:8080/
+          grep -q "RentEase" /tmp/index.html
           echo "Integration test passed"
 
       - name: Show container logs on failure
