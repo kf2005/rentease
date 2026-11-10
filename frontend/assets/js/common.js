@@ -178,7 +178,7 @@
     const footer = document.createElement("footer");
     footer.className = "site-footer";
     footer.innerHTML = '<div class="container"><span>© ' + new Date().getFullYear() +
-      ' RentEase — find your next home</span><span id="served-by"></span></div>';
+      ' RentEase — deployed automatically via CI/CD</span><span id="served-by"></span></div>';
     document.body.appendChild(footer);
   }
 
